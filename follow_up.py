@@ -5,6 +5,7 @@ import logging
 import pyxlsb  # Required for reading .xlsb files
 import win32com.client as win32  # Using MAPI instead of direct Outlook automation
 from openpyxl import load_workbook  # Preserve formatting when updating Excel
+import time  # Add time module for delay
 
 # Configure logging
 logging.basicConfig(filename="followup_errors.log", level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -127,6 +128,9 @@ for year, file_path in file_paths.items():
                     mail.Send()
                     logging.info(f"Email sent to {contact_email} for project {row['Project']}")
                     
+                    # Add a 1-second delay between emails
+                    time.sleep(1)
+
                     # Update Last Correspondence and Follow-Up Stage
                     ws.cell(row=index + 2, column=last_correspondence_col, value=today.strftime('%m-%d-%Y'))
                     ws.cell(row=index + 2, column=follow_up_stage_col, value=follow_up_stage + 1)
