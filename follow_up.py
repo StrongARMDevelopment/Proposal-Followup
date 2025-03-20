@@ -29,8 +29,6 @@ dummy_mail.Display()  # Opens a draft email to access signature
 signature = dummy_mail.HTMLBody  # Extracts the signature
 dummy_mail.Close(0)  # Closes the draft email without saving
 
-email_sent = False  # Track if an email was sent
-
 # Loop through each file path
 for year, file_path in file_paths.items():
     # Validate file path
@@ -51,9 +49,6 @@ for year, file_path in file_paths.items():
 
     # Process each sheet
     for sheet_name, df in df_sheets.items():
-        if email_sent:  # Stop processing if an email has already been sent
-            break
-
         print(f"Processing {year} - Sheet: {sheet_name} - First few date values:\n", df["Date Proposal Submitted"].head())
         
         # Check for required columns
@@ -71,9 +66,6 @@ for year, file_path in file_paths.items():
         follow_up_stage_col = df.columns.get_loc("Follow-Up Stage") + 1  # Excel is 1-based index
 
         for index, row in df.iterrows():
-            if email_sent:  # Stop processing if an email has already been sent
-                break
-
             try:
                 # Validate and process row data
                 if isinstance(row["Date Proposal Submitted"], (int, float)):
@@ -138,8 +130,6 @@ for year, file_path in file_paths.items():
                     # Update Last Correspondence and Follow-Up Stage
                     ws.cell(row=index + 2, column=last_correspondence_col, value=today.strftime('%m-%d-%Y'))
                     ws.cell(row=index + 2, column=follow_up_stage_col, value=follow_up_stage + 1)
-                    email_sent = True  # Set the flag to stop further processing
-                    break
 
                 except Exception as e:
                     logging.error(f"Error processing row {index} in sheet {sheet_name}: {str(e)}")
@@ -148,7 +138,5 @@ for year, file_path in file_paths.items():
                 logging.error(f"Error processing row {index} in sheet {sheet_name}: {str(e)}")
 
     # Save changes to the workbook
-    if email_sent:
-        wb.save(file_path)  # Save changes only if an email was sent
-        logging.info(f"Spreadsheet for {year} updated with last correspondence dates and follow-up stages.")
-        break  # Stop processing other files if an email was sent
+    wb.save(file_path)  # Save changes after processing all rows in the workbook
+    logging.info(f"Spreadsheet for {year} updated with last correspondence dates and follow-up stages.")
