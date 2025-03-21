@@ -105,8 +105,8 @@ for year, file_path in file_paths.items():
                 # Select email template based on stage
                 email_templates = [
                     ("Quick Follow-Up on {project} Proposal", "Hi {contact},<br><br> I hope you're doing well! I wanted to follow up on our proposal for {project}, which we submitted on {date} for ${value}.<br><br> Were we competitive on pricing? Did our scope cover all the miscellaneous steel items you were expecting?<br><br> Let me know if there's anything we can clarify or adjust—we’d love to be a part of this project.<br><br>"),
-                    ("Checking in on {project} Project", "Hi {contact},<br><br> I wanted to follow up on the status of the {project} project.<br><br> How's this project coming along? Is there anything we can do to help?<br><br>"),
-                    ("Checking in again on {project} Project", "Hi {contact},<br><br> I wanted to check in again on the status of the {project} project.<br><br> Is this project still moving forward? Let us know if we can assist in any way.<br><br>")
+                    ("Checking in on {project}", "Hi {contact},<br><br> I wanted to follow up on the status of the {project} project.<br><br> How's this project coming along? Is there anything we can do to help?<br><br>"),
+                    ("Checking in again on {project}", "Hi {contact},<br><br> I wanted to check in again on the status of the {project} project.<br><br> Is this project still moving forward? Let us know if we can assist in any way.<br><br>")
                 ]
                 
                 subject, body = email_templates[follow_up_stage]
