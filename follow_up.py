@@ -20,9 +20,13 @@ file_paths = {
 today = datetime.datetime.today().date()
 
 # Initialize Outlook using MAPI
-outlook = win32.Dispatch("Outlook.Application")
-namespace = outlook.GetNamespace("MAPI")
-account = namespace.Accounts[0]  # Use the default Outlook account
+try:
+    outlook = win32.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
+    account = namespace.Accounts[0]
+except Exception as e:
+    logging.critical("Outlook is not available or not configured properly.")
+    raise
 
 # Retrieve the default Outlook signature
 dummy_mail = outlook.CreateItem(0)
@@ -71,12 +75,14 @@ for year, file_path in file_paths.items():
                 # Validate and process row data
                 if isinstance(row["Date Proposal Submitted"], (int, float)):
                     submission_date = datetime.datetime(1899, 12, 30) + datetime.timedelta(days=row["Date Proposal Submitted"])
+                elif isinstance(row["Date Proposal Submitted"], str):
+                    submission_date = pd.to_datetime(row["Date Proposal Submitted"], errors='coerce')
                 else:
-                    submission_date = pd.to_datetime(row["Date Proposal Submitted"], format="%Y-%m-%d", errors='coerce')
-                
+                    submission_date = pd.to_datetime(row["Date Proposal Submitted"], errors='coerce')
+
                 # Check if the date is valid
                 if pd.isna(submission_date) or submission_date.year < 2000:
-                    logging.info(f"Skipping row {index} in sheet {sheet_name}: Invalid or missing submission date")
+                    logging.info(f"Skipping row {index} in sheet {sheet_name}: Invalid or missing submission date ({row['Date Proposal Submitted']})")
                     continue  # Skip rows with invalid submission dates
                 
                 submission_date_str = submission_date.strftime('%m-%d-%Y')
@@ -108,6 +114,10 @@ for year, file_path in file_paths.items():
                     ("Checking in on {project}", "Hi {contact},<br><br> I wanted to follow up on the status of the {project} project.<br><br> How's this project coming along? Is there anything we can do to help?<br><br>"),
                     ("Checking in again on {project}", "Hi {contact},<br><br> I wanted to check in again on the status of the {project} project.<br><br> Is this project still moving forward? Let us know if we can assist in any way.<br><br>")
                 ]
+                
+                if follow_up_stage < 0 or follow_up_stage >= len(email_templates):
+                    logging.info(f"Skipping row {index} in sheet {sheet_name}: Follow-Up Stage {follow_up_stage} out of range")
+                    continue
                 
                 subject, body = email_templates[follow_up_stage]
                 subject = subject.format(project=row['Project'])
