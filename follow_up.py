@@ -87,7 +87,9 @@ for year, file_path in file_paths.items():
 
                     # Check if the date is valid
                     if pd.isna(submission_date) or submission_date.year < 2000:
-                        logging.info(f"Skipping row {index} in sheet {sheet_name}: Invalid or missing submission date ({row['Date Proposal Submitted']})")
+                        logging.info(
+                            f"Skipping row {index} in sheet {sheet_name}: Invalid or missing submission date ({row['Date Proposal Submitted']}) | Row data: {row.to_dict()}"
+                        )
                         continue  # Skip rows with invalid submission dates
                     
                     submission_date_str = submission_date.strftime('%m-%d-%Y')
@@ -95,12 +97,16 @@ for year, file_path in file_paths.items():
                     # Contact email extraction (robust)
                     contact_email = str(row.get("Contact Email", "") or "").strip()
                     if not contact_email:
-                        logging.info(f"Skipping row {index} in sheet {sheet_name}: Missing contact email")
+                        logging.info(
+                            f"Skipping row {index} in sheet {sheet_name}: Missing contact email | Row data: {row.to_dict()}"
+                        )
                         continue  # Skip rows without contact email
 
                     # Stop follow-ups if project is won, lost, or set for re-bid
                     if row.get("Won", "") == "X" or row.get("Lost", "") == "X" or row.get("Re-Bid", "") == "X":
-                        logging.info(f"Skipping row {index} in sheet {sheet_name}: Project marked as won/lost/re-bid")
+                        logging.info(
+                            f"Skipping row {index} in sheet {sheet_name}: Project marked as won/lost/re-bid | Row data: {row.to_dict()}"
+                        )
                         continue
 
                     # Determine follow-up stage
@@ -115,10 +121,19 @@ for year, file_path in file_paths.items():
                         days_required = 14
                         template_index = follow_up_stage
                     elif follow_up_stage >= 3 and last_correspondence and (today - last_correspondence).days >= 14:
-                        # NEW: Continue sending stage 3 template every 14 days indefinitely
                         days_required = 14
                         template_index = 2  # Always use the last template
                     else:
+                        # NEW: Log reason for skipping due to recent correspondence or not ready for follow-up
+                        if follow_up_stage == 0:
+                            reason = f"Not enough days since submission ({(today - submission_date.date()).days} < 7)"
+                        elif last_correspondence:
+                            reason = f"Not enough days since last correspondence ({(today - last_correspondence).days} < {days_required if 'days_required' in locals() else 'N/A'})"
+                        else:
+                            reason = "Unknown reason"
+                        logging.info(
+                            f"Skipping row {index} in sheet {sheet_name}: Not ready for follow-up. Reason: {reason} | Row data: {row.to_dict()}"
+                        )
                         continue  # Skip if criteria are not met
 
                     # Select email template based on stage
