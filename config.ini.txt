@@ -1,0 +1,50 @@
+[Settings]
+DryRun = True
+YearsToProcess = 2023,2024
+ValidMonths = January,February,March,April,May,June,July,August,September,October,November,December
+DaysFirstFollowUp = 7
+DaysSubsequentFollowUps = 5
+MaxEmailSendAttempts = 3
+EmailRetryDelaySeconds = 5
+EmailSendDelaySeconds = 1
+DesiredOutlookAccount = 
+LogLevel = INFO
+BackupExcelBeforeSave = True
+
+[Paths]
+Log2023Path = C:\Path\To\Your\2023_Log.xlsx
+Log2024Path = C:\Path\To\Your\2024_Log.xlsx
+ScriptLogFile = followup_automation.log
+LockFilePath = followup_automation.lock
+
+[Columns]
+DateProposalSubmitted = Date Submitted
+LastCorrespondence = Last Correspondence
+ContactEmail = Contact Email
+ContactName = Contact Name
+ProjectName = Project Name
+Value = Value
+Won = Won
+Lost = Lost
+ReBid = Re-Bid
+FollowUpStage = Follow Up Stage
+
+[EmailBody]
+Greeting = <p>Hi {contact_first_name},</p>
+Intro = <p>Just following up on the following proposal(s):</p>
+ProjectListStart = <ul>
+ProjectListItem = <li><strong>{project_name}</strong> ({submission_date_str}{value_info})<br/><em>{snippet_text}</em></li>
+ProjectListEnd = </ul>
+Closing = <p>Let us know if we can help.</p>
+ValueFormat = , value: ${value_str}
+DefaultSignatureFallback = <br><br>Best regards,
+
+[EmailSubjects]
+SingleProject = Follow-up on {project_name}
+TwoProjects = Follow-up on {project_name_1} and {project_name_2}
+MultipleProjects = Follow-up on {first_project_name} & others
+
+[EmailSnippets]
+Snippet_0 = We wanted to check in regarding this proposal.
+Snippet_1 = Just a quick follow-up on our previous message.
+Snippet_2 = This is a final courtesy follow-up regarding your proposal.
