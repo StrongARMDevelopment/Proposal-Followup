@@ -16,6 +16,7 @@ CONFIG_FILE_NAME = "config.ini"
 SCRIPT_VERSION = "2.0.0"
 EXCEL_DATE_OFFSET = datetime.datetime(1899, 12, 30)
 EXCEL_ROW_OFFSET = 2  # Excel rows are 1-based, plus header
+outlook_signature = ""
 
 def excel_date_to_datetime(excel_date):
     """Convert Excel serial date to datetime."""
@@ -262,7 +263,7 @@ def process_proposals(config, today_date):
     logging.info(f"--- Phase 1 Complete: Collected {sum(len(v) for v in grouped_follow_ups.values())} total qualifying follow-ups for {len(grouped_follow_ups)} unique contacts. ---")
     return grouped_follow_ups
 
-def send_consolidated_emails(config, grouped_follow_ups):
+def send_consolidated_emails(config, grouped_follow_ups, outlook=None, is_dry_run=False):
     """Send consolidated emails for grouped follow-ups."""
     global outlook_signature
     successful_sends_for_excel_update = []
@@ -435,6 +436,7 @@ def setup_logging(config):
 def main():
     """Main script execution."""
     global outlook, namespace, outlook_signature, lock_file_handle
+    outlook = None  # <-- ADD THIS LINE
     today_date = datetime.datetime.today().date()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     try:
@@ -456,7 +458,7 @@ def main():
     try:
         initialize_outlook(config)
         collected_follow_ups = process_proposals(config, today_date)
-        successfully_updated_proposals = send_consolidated_emails(config, collected_follow_ups)
+        successfully_updated_proposals = send_consolidated_emails(config, collected_follow_ups, outlook, is_dry_run)
         update_excel_sheets(config, successfully_updated_proposals, today_date)
     except Exception as e:
         logging.critical(f"An unhandled error occurred in main execution: {e}", exc_info=True)
