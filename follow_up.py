@@ -90,7 +90,7 @@ def initialize_outlook(config):
             dummy_mail = outlook.CreateItem(0)
             if not dummy_mail.HTMLBody:
                 dummy_mail.Display()
-                time.sleep(0.5)
+                time.sleep(2)  # Allow time for signature to load
             outlook_signature = dummy_mail.HTMLBody
             dummy_mail.Close(0)
             if outlook_signature:
