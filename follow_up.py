@@ -13,7 +13,7 @@ import shutil
 
 # --- Global Script Constants ---
 CONFIG_FILE_NAME = "config.ini"
-SCRIPT_VERSION = "2.2.0" # Version updated for new features
+SCRIPT_VERSION = "2.2.0"
 EXCEL_DATE_OFFSET = datetime.datetime(1899, 12, 30)
 EXCEL_ROW_OFFSET = 2  # Excel rows are 1-based, plus header
 
@@ -84,32 +84,15 @@ def initialize_outlook(config):
         namespace = outlook.GetNamespace("MAPI")
         logging.info("Outlook MAPI session initialized.")
 
-        desired_account = config.get('Settings', 'DesiredOutlookAccount', fallback=None)
-        account = None
-        if desired_account:
-            for acct in namespace.Accounts:
-                if acct.SmtpAddress.lower() == desired_account.lower():
-                    account = acct
-                    break
-            if not account:
-                logging.warning(f"Desired Outlook account '{desired_account}' not found. Using default account.")
-                account = namespace.Accounts[0]
-        else:
-            account = namespace.Accounts[0]
-
-        try:
-            dummy_mail = outlook.CreateItem(0)
-            dummy_mail.SendUsingAccount = account  # Ensure correct account/signature
-            dummy_mail.Display()
-            time.sleep(2)  # Allow time for signature to load
-            outlook_signature = dummy_mail.HTMLBody
-            dummy_mail.Close(0)
+        signature_name = config.get('Settings', 'SignatureName', fallback=None)
+        if signature_name:
+            outlook_signature = get_signature_html_from_file(signature_name)
             if outlook_signature:
-                logging.info("Successfully retrieved Outlook signature.")
+                logging.info(f"Signature loaded from file: {signature_name}.htm")
             else:
-                logging.warning("Outlook signature is empty or could not be retrieved.")
-        except Exception as e:
-            logging.error(f"Could not retrieve Outlook signature: {e}.")
+                logging.warning("Signature HTML is empty or could not be loaded from file.")
+        else:
+            logging.warning("No SignatureName specified in config. Signature will not be included.")
             outlook_signature = ""
     except Exception as e:
         logging.error(f"Outlook is not available or not configured properly: {e}. Emails will not be sent.")
@@ -160,6 +143,19 @@ def get_excel_column_index_by_header(ws, header_name):
         if cell_value and str(cell_value).strip().lower() == header_name.strip().lower():
             return col
     return None
+
+def get_signature_html_from_file(signature_name):
+    """
+    Reads the signature HTML directly from the user's signature folder.
+    """
+    signature_dir = os.path.join(os.environ['APPDATA'], 'Microsoft', 'Signatures')
+    signature_file = os.path.join(signature_dir, f"{signature_name}.htm")
+    if os.path.exists(signature_file):
+        with open(signature_file, encoding='utf-8') as f:
+            return f.read()
+    else:
+        logging.warning(f"Signature file not found: {signature_file}")
+        return ""
 
 # --- Core Processing Functions ---
 
