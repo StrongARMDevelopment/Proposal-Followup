@@ -79,18 +79,29 @@ def load_configuration():
 def initialize_outlook(config):
     """Initialize Outlook application and retrieve signature."""
     global outlook, namespace, outlook_signature
-    # In test email mode, we need Outlook, so we don't check for DryRun here.
-    # The main() block will handle when to call this.
     try:
         outlook = win32.Dispatch("Outlook.Application")
         namespace = outlook.GetNamespace("MAPI")
         logging.info("Outlook MAPI session initialized.")
 
+        desired_account = config.get('Settings', 'DesiredOutlookAccount', fallback=None)
+        account = None
+        if desired_account:
+            for acct in namespace.Accounts:
+                if acct.SmtpAddress.lower() == desired_account.lower():
+                    account = acct
+                    break
+            if not account:
+                logging.warning(f"Desired Outlook account '{desired_account}' not found. Using default account.")
+                account = namespace.Accounts[0]
+        else:
+            account = namespace.Accounts[0]
+
         try:
             dummy_mail = outlook.CreateItem(0)
-            if not dummy_mail.HTMLBody:
-                dummy_mail.Display()
-                time.sleep(2)  # Allow time for signature to load
+            dummy_mail.SendUsingAccount = account  # Ensure correct account/signature
+            dummy_mail.Display()
+            time.sleep(2)  # Allow time for signature to load
             outlook_signature = dummy_mail.HTMLBody
             dummy_mail.Close(0)
             if outlook_signature:
@@ -103,6 +114,7 @@ def initialize_outlook(config):
     except Exception as e:
         logging.error(f"Outlook is not available or not configured properly: {e}. Emails will not be sent.")
         outlook = None
+    logging.info(f"Signature length: {len(outlook_signature)}")
     return outlook # Return the outlook object for use in main()
 
 def get_outlook_account(outlook_app, desired_email):
@@ -137,6 +149,17 @@ def setup_logging(config):
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     root_logger.addHandler(console_handler)
+
+def get_excel_column_index_by_header(ws, header_name):
+    """
+    Returns the 1-based column index for the given header name in the first row of the worksheet.
+    Returns None if not found.
+    """
+    for col in range(1, ws.max_column + 1):
+        cell_value = ws.cell(row=1, column=col).value
+        if cell_value and str(cell_value).strip().lower() == header_name.strip().lower():
+            return col
+    return None
 
 # --- Core Processing Functions ---
 
@@ -232,8 +255,11 @@ def process_proposals(config, today_date):
                         "submission_date_str": submission_date.strftime('%m-%d-%Y'),
                         "value_str": value_str,
                         "contact_first_name": str(row.get(cols['ContactName'], "")).strip().split()[0] or "there",
-                        "row_index_df": index, "sheet_name": sheet_name, "workbook_path": file_path,
-                        "new_follow_up_stage": follow_up_stage + 1, "email_snippet_key": template_index,
+                        "row_index_df": index,
+                        "sheet_name": sheet_name,
+                        "workbook_path": file_path,
+                        "new_follow_up_stage": min(follow_up_stage + 1, 3),  # <-- Ensures stage never exceeds 3
+                        "email_snippet_key": template_index,
                         "last_correspondence_col_df_idx": df.columns.get_loc(cols['LastCorrespondence']),
                         "follow_up_stage_col_df_idx": df.columns.get_loc(cols['FollowUpStage'])
                     }
@@ -344,8 +370,18 @@ def update_excel_sheets(config, successful_updates, today_date):
                     continue
                 ws = wb[sheet_name]
                 logging.info(f"Updating sheet: '{sheet_name}' in '{wb_path}'.")
+
+                # Map headers to column indices
+                last_corr_header = config['Columns']['LastCorrespondence']
+                follow_up_stage_header = config['Columns']['FollowUpStage']
+                lc_col = get_excel_column_index_by_header(ws, last_corr_header)
+                st_col = get_excel_column_index_by_header(ws, follow_up_stage_header)
+                if lc_col is None or st_col is None:
+                    logging.error(f"Could not find required columns in sheet '{sheet_name}'. Skipping updates for this sheet.")
+                    continue
+
                 for item in sheet_updates.to_dict('records'):
-                    row, lc_col, st_col = item['row_index_df'] + EXCEL_ROW_OFFSET, item['last_correspondence_col_df_idx'] + 1, item['follow_up_stage_col_df_idx'] + 1
+                    row = item['row_index_df'] + EXCEL_ROW_OFFSET
                     ws.cell(row=row, column=lc_col, value=today_date.strftime('%m-%d-%Y'))
                     ws.cell(row=row, column=st_col, value=item['new_follow_up_stage'])
             wb.save(wb_path)
