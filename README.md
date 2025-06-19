@@ -1,148 +1,66 @@
-# Proposal Follow-Up Automation
+# Automated Proposal Follow-Up Script
 
-This Python script automates follow-up emails for sales proposals stored in annual Excel workbooks. It integrates with Microsoft Outlook (MAPI) to send personalized follow-ups based on proposal age and prior correspondence.
+**Version:** 2.2.0
+**Author:** [Aaron Melton/Harbor Fab]
+**Last Updated:** June 2025
 
 ---
 
-## Features
+## Overview
 
-* Reads from yearly Excel files (e.g., `2024`, `2025`) containing monthly sheets of proposal data.
-* Sends follow-up emails using predefined templates and your Outlook signature.
-* Skips projects marked as **Won**, **Lost**, or **Re-Bid**.
-* Tracks and updates **Last Correspondence** and **Follow-Up Stage** columns in-place.
-* Logs all actions and errors to a configurable log file.
-* Prevents concurrent runs with a lock file.
-* Supports dry-run mode for safe testing.
-* Backs up Excel files before making changes (optional, see config).
+This Python script automates the process of sending follow-up emails for submitted proposals. It reads data from Excel logs, identifies proposals that are due for a follow-up based on configurable rules, and sends personalized, consolidated emails to each contact.
+
+The primary goal is to maintain professional communication with clients without overwhelming them with individual emails for each proposal. If a single contact has multiple proposals ready for follow-up, the script intelligently groups them into a single, well-formatted email.
+
+This tool is designed to be robust, configurable, and safe, featuring multiple modes of operation including a "dry run" for testing and a comprehensive test email function.
+
+---
+
+## Key Features
+
+* **Consolidated Emails:** Groups multiple proposals for the same contact into a single, clean email.
+* **Multi-Stage Follow-Up Logic:** Uses different email snippets based on the follow-up stage (1st, 2nd, 3rd+).
+* **External Configuration:** All settings, paths, and email templates are managed in an external `config.ini` file, so no code changes are needed for adjustments.
+* **Safe Operation Modes:**
+    * **Live Run:** The default mode that sends emails and updates Excel files.
+    * **Dry Run:** Simulates the entire process and logs what *would* happen without sending emails or modifying files.
+    * **Test Email Mode:** Sends pre-formatted test emails to a specified recipient to verify template appearance.
+* **Robust Error Handling:** Includes specific checks for file access, network issues, and invalid data.
+* **Direct Outlook Signature Integration:** Reads your named Outlook signature directly from its file, ensuring emails are perfectly formatted.
+* **Dynamic Column Lookup:** Finds columns in Excel by header name, so reordering columns in your log files won't break the script.
+* **Safety Features:**
+    * Creates automatic `.bak` backups of Excel files before modifying them.
+    * Uses a `.lock` file to prevent multiple instances of the script from running simultaneously.
+* **Detailed Logging:** Logs all actions, warnings, and errors to both the console and a dedicated log file (`followup_automation.log`).
 
 ---
 
 ## Requirements
 
-* Windows OS
-* Microsoft Outlook (configured and open)
 * Python 3.8+
-* Dependencies:
-  * `pandas`
-  * `openpyxl`
-  * `pywin32`
+* Required Python libraries:
+    * `pandas`
+    * `openpyxl`
+    * `pywin32`
 
-Install dependencies via:
+*(Note: The `zipfile` and `shutil` libraries are part of the Python standard library and do not require separate installation.)*
+
+---
+
+## Setup & Configuration
+
+### 1. Installation
+
+Clone the repository and install the required packages using pip. It's recommended to do this within a virtual environment.
 
 ```bash
+# Clone the repository (replace with your actual URL)
+git clone [your-repository-url]
+cd [your-repository-folder]
+
+# Create and activate a virtual environment (optional but recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+
+# Install required packages
 pip install pandas openpyxl pywin32
-```
-
----
-
-## Configuration
-
-All settings are managed in `config.ini`.  
-**Example:**
-
-```ini
-[Settings]
-DryRun = False
-YearsToProcess = 2024,2025
-ValidMonths = January,February,March,April,May,June,July,August,September,October,November,December
-DaysFirstFollowUp = 7
-DaysSubsequentFollowUps = 5
-MaxEmailSendAttempts = 3
-EmailRetryDelaySeconds = 5
-EmailSendDelaySeconds = 1
-DesiredOutlookAccount = 
-LogLevel = INFO
-BackupExcelBeforeSave = True
-
-[Paths]
-Log2024Path = H:\...\Proposals Submitted Log - 2024.xlsx
-Log2025Path = H:\...\Proposals Submitted Log - 2025.xlsx
-ScriptLogFile = followup_automation.log
-LockFilePath = followup_automation.lock
-
-[Columns]
-DateProposalSubmitted = Date Submitted
-LastCorrespondence = Last Correspondence
-ContactEmail = Contact Email
-ContactName = Contact Name
-ProjectName = Project Name
-Value = Value
-Won = Won
-Lost = Lost
-ReBid = Re-Bid
-FollowUpStage = Follow Up Stage
-
-[EmailBody]
-Greeting = <p>Hi {contact_first_name},</p>
-Intro = <p>Just following up on the following proposal(s):</p>
-ProjectListStart = <ul>
-ProjectListItem = <li><strong>{project_name}</strong> ({submission_date_str}{value_info})<br/><em>{snippet_text}</em></li>
-ProjectListEnd = </ul>
-Closing = <p>Let us know if we can help.</p>
-ValueFormat = , value: ${value_str}
-DefaultSignatureFallback = <br><br>Best regards,
-
-[EmailSubjects]
-SingleProject = Follow-up on {project_name}
-TwoProjects = Follow-up on {project_name_1} and {project_name_2}
-MultipleProjects = Follow-up on {first_project_name} & others
-
-[EmailSnippets]
-Snippet_0 = We wanted to check in regarding this proposal.
-Snippet_1 = Just a quick follow-up on our previous message.
-Snippet_2 = This is a final courtesy follow-up regarding your proposal.
-```
-
-**Adjust file paths, column names, and templates as needed.**
-
----
-
-## How It Works
-
-1. **Setup**: Opens Outlook and retrieves the user's signature.
-2. **Load Sheets**: Only processes sheets named after months listed in `ValidMonths`.
-3. **Row Checks**:
-   * Skips rows with invalid or missing data.
-   * Skips proposals marked won/lost/re-bid.
-4. **Follow-Up Logic**:
-   * Stage 0: `DaysFirstFollowUp` days since submission or last correspondence.
-   * Stage 1+: `DaysSubsequentFollowUps` days since last correspondence.
-5. **Email**: Selects a template based on the stage, fills in proposal info, and sends it via Outlook.
-6. **Workbook Update**: Writes back updated dates and stages. Optionally creates a backup before saving.
-7. **Logging**: All actions and errors are logged to the file specified in `ScriptLogFile`.
-
----
-
-## Running the Script
-
-Open a terminal and run:
-
-```bash
-python follow_up.py
-```
-
-Ensure Outlook is running and the Excel files are not open in another program.
-
----
-
-## Logging
-
-All errors and actions are saved in the log file specified by `ScriptLogFile` in your `config.ini`.
-
----
-
-## Customization
-
-To change email templates, subjects, or snippets, edit the relevant sections in `config.ini`.
-
----
-
-## Notes
-
-* Excel indexing assumes data starts on row 2 (after headers).
-* Signature is extracted from a temporary draft email.
-* Waits between emails to avoid Outlook rate limits (see `EmailSendDelaySeconds`).
-* Dry-run mode (`DryRun = True`) allows you to test without sending emails or modifying Excel files.
-* Excel files are backed up before changes if `BackupExcelBeforeSave = True`.
-
----
