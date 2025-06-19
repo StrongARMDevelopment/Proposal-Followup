@@ -15,10 +15,9 @@ import shutil
 CONFIG_FILE_NAME = "config.ini"
 SCRIPT_VERSION = "2.2.0"
 EXCEL_DATE_OFFSET = datetime.datetime(1899, 12, 30)
-EXCEL_ROW_OFFSET = 2  # Excel rows are 1-based, plus header
+EXCEL_ROW_OFFSET = 2
 
 # --- Global Variables ---
-# These are managed within the main execution block and passed as needed.
 outlook = None
 namespace = None
 outlook_signature = ""
@@ -67,7 +66,6 @@ def load_configuration():
         raise FileNotFoundError(f"Configuration file '{CONFIG_FILE_NAME}' not found.")
     try:
         parser.read(CONFIG_FILE_NAME)
-        # Pre-process list-like settings for easier access later
         parser.set('Settings', 'YearsToProcess', str([year.strip() for year in parser.get('Settings', 'YearsToProcess', fallback='').split(',') if year.strip()]))
         parser.set('Settings', 'ValidMonths', str([month.strip() for month in parser.get('Settings', 'ValidMonths', fallback='').split(',') if month.strip()]))
         logging.info(f"Configuration loaded from '{CONFIG_FILE_NAME}'.")
@@ -98,7 +96,7 @@ def initialize_outlook(config):
         logging.error(f"Outlook is not available or not configured properly: {e}. Emails will not be sent.")
         outlook = None
     logging.info(f"Signature length: {len(outlook_signature)}")
-    return outlook # Return the outlook object for use in main()
+    return outlook
 
 def get_outlook_account(outlook_app, desired_email):
     """Get the Outlook account matching the desired email."""
@@ -503,13 +501,12 @@ def main():
     """Main script execution."""
     today_date = datetime.datetime.today().date()
     
-    # Minimal initial logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     
     try:
         config = load_configuration()
     except Exception:
-        sys.exit(1) # Error already logged
+        sys.exit(1)
 
     setup_logging(config)
     logging.info(f"--- Script Started (Version: {SCRIPT_VERSION}) ---")
@@ -518,7 +515,7 @@ def main():
     if not create_lock_file(lock_file_path):
         sys.exit(1)
 
-    outlook_app = None # Initialize to None
+    outlook_app = None
     try:
         is_dry_run = config.getboolean('Settings', 'DryRun')
         is_test_mode = config.getboolean('Settings', 'SendTestEmail', fallback=False)
